@@ -1,0 +1,11 @@
+services:
+  invitepro-backend:
+    container_name: invitepro-backend
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "${PORT:-3010}:3010"
+    env_file:
+      - .env
+    restart: unless-stopped
