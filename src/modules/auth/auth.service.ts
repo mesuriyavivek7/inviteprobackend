@@ -13,6 +13,12 @@ const getJwtSecret = (): string => {
   return secret;
 };
 
+const generateAccessToken = (id: unknown, role: string): string => {
+  return jwt.sign({ id, role }, getJwtSecret(), {
+    expiresIn: "7d",
+  });
+};
+
 const assertSignupPayload = ({ fullName, email, password }: SignupInput): void => {
   if (!fullName?.trim() || !email?.trim() || !password?.trim()) {
     throw new Error("fullName, email and password are required");
@@ -42,12 +48,18 @@ export const signupUser = async (payload: SignupInput) => {
     refId: user._id,
   });
 
+  const token = generateAccessToken(login._id, login.role);
+
   return {
-    id: login._id,
-    email: login.email,
-    role: login.role,
-    status: login.status,
-    refId: login.refId,
+    token,
+    user: {
+      id: login._id,
+      email: login.email,
+      role: login.role,
+      status: login.status,
+      refId: login.refId,
+      fullName: user.fullName,
+    },
   };
 };
 
@@ -68,12 +80,18 @@ export const signupAdmin = async (payload: SignupInput) => {
     refId: admin._id,
   });
 
+  const token = generateAccessToken(login._id, login.role);
+
   return {
-    id: login._id,
-    email: login.email,
-    role: login.role,
-    status: login.status,
-    refId: login.refId,
+    token,
+    user: {
+      id: login._id,
+      email: login.email,
+      role: login.role,
+      status: login.status,
+      refId: login.refId,
+      fullName: admin.fullName,
+    },
   };
 };
 
@@ -89,9 +107,7 @@ export const login = async (payload: LoginInput) => {
   const isMatch = await comparePassword(payload.password, user.password);
   if (!isMatch) throw new Error("Invalid credentials");
 
-  const token = jwt.sign({ id: user._id, role: user.role }, getJwtSecret(), {
-    expiresIn: "7d",
-  });
+  const token = generateAccessToken(user._id, user.role);
 
   return {
     token,
