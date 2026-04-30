@@ -89,3 +89,49 @@ export const deleteGuest = async (req: Request, res: Response): Promise<void> =>
     });
   }
 };
+
+export const assignGuestToEvents = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const guestId = req.params.guestId;
+    if (!guestId || Array.isArray(guestId)) {
+      throw new Error("Invalid guest id");
+    }
+
+    const data = await guestService.assignGuestToEvents(guestId, req.body);
+
+    res.status(200).json({
+      success: true,
+      message: "Guest assigned to event(s) successfully",
+      data,
+    });
+  } catch (error) {
+    res.status(400).json({
+      success: false,
+      message: toErrorMessage(error),
+      data: null,
+    });
+  }
+};
+
+export const markGuestCallDone = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const guestId = req.params.guestId;
+    if (!guestId || Array.isArray(guestId)) {
+      throw new Error("Invalid guest id");
+    }
+
+    const data = await guestService.markGuestCallDone(guestId);
+
+    res.status(200).json({
+      success: true,
+      message: "Guest call marked as done successfully",
+      data,
+    });
+  } catch (error) {
+    res.status(400).json({
+      success: false,
+      message: toErrorMessage(error),
+      data: null,
+    });
+  }
+};

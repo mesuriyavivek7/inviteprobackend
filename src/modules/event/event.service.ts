@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import Event from "./event.model.js";
+import EventGuest from "../eventGuest/eventGuest.model.js";
 import type { CreateEventInput, UpdateEventInput } from "./event.types.js";
 
 const assertEventName = (eventName: string | undefined): string => {
@@ -41,7 +42,62 @@ export const getAllEvents = async (search?: string) => {
     .sort({ createdAt: -1 })
     .populate("added_by", "email role status");
 
-  return events;
+  const eventIds = events.map((event) => event._id);
+
+  const eventGuestStats = await EventGuest.aggregate<{
+    _id: mongoose.Types.ObjectId;
+    totalGuestCount: number;
+    calledGuestCount: number;
+  }>([
+    {
+      $match: {
+        eventId: { $in: eventIds },
+      },
+    },
+    {
+      $lookup: {
+        from: "guests",
+        localField: "guestId",
+        foreignField: "_id",
+        as: "guest",
+      },
+    },
+    { $unwind: "$guest" },
+    {
+      $match: {
+        "guest.isDeleted": false,
+      },
+    },
+    {
+      $group: {
+        _id: "$eventId",
+        totalGuestCount: { $sum: 1 },
+        calledGuestCount: {
+          $sum: {
+            $cond: [{ $eq: ["$guest.isCalled", true] }, 1, 0],
+          },
+        },
+      },
+    },
+  ]);
+
+  const statsByEventId = new Map(
+    eventGuestStats.map((stat) => [stat._id.toString(), stat])
+  );
+
+  return events.map((event) => {
+    const stat = statsByEventId.get(event._id.toString());
+    const totalGuestCount = stat?.totalGuestCount ?? 0;
+    const calledGuestCount = stat?.calledGuestCount ?? 0;
+    const notCalledGuestCount = totalGuestCount - calledGuestCount;
+
+    return {
+      ...event.toObject(),
+      totalGuestCount,
+      calledGuestCount,
+      notCalledGuestCount,
+    };
+  });
 };
 
 export const updateEvent = async (eventId: string, payload: UpdateEventInput) => {
