@@ -6,5 +6,6 @@ const router = Router();
 
 router.post("/:eventId/guests/assign", requireAuth(), controller.assignGuestsToEvent);
 router.get("/:eventId/guests", requireAuth(), controller.getGuestsByEvent);
+router.patch("/:eventId/guests/:guestId/status", requireAuth(), controller.updateEventGuestStatus);
 
 export default router;

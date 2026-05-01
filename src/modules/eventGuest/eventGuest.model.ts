@@ -19,6 +19,8 @@ const eventGuestSchema = new Schema(
       enum: GUEST_TAGS,
       required: true,
     },
+    isCalled: { type: Boolean, default: false },
+    isWatsapp: { type: Boolean, default: false },
   },
   { timestamps: true }
 );

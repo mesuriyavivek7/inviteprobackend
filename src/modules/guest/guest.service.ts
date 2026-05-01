@@ -6,6 +6,7 @@ import type {
   AssignGuestToEventsInput,
   CreateGuestInput,
   GuestInput,
+  UpsertGuestEventMappingsInput,
   UpdateGuestInput,
 } from "./guest.types.js";
 
@@ -67,6 +68,33 @@ const normalizeEventAssignments = (
   });
 };
 
+const normalizeGuestEventMappingsPayload = (payload: UpsertGuestEventMappingsInput) => {
+  if (!Array.isArray(payload.events) || payload.events.length === 0) {
+    throw new Error("events must be a non-empty array");
+  }
+
+  return payload.events.map((item) => {
+    const eventId = item.eventId?.trim();
+    const eventName = item.eventName?.trim();
+
+    if (!eventId && !eventName) {
+      throw new Error("Each item must include eventId or eventName");
+    }
+
+    if (eventId) {
+      assertObjectId(eventId, "Invalid event id");
+    }
+
+    return {
+      eventId,
+      eventName,
+      guestTag: normalizeGuestTag(item.guestTag),
+      isCalled: item.isCalled ?? false,
+      isWatsapp: item.isWatsapp ?? false,
+    };
+  });
+};
+
 export const createGuests = async (payload: CreateGuestInput) => {
   const guests = normalizeGuestsPayload(payload).map((guest) => ({
     name: normalizeName(guest.name),
@@ -120,14 +148,6 @@ export const updateGuest = async (guestId: string, payload: UpdateGuestInput) =>
 
   if (payload.mobileNo !== undefined) {
     updates.mobileNo = normalizeMobileNo(payload.mobileNo);
-  }
-
-  if (payload.isCalled !== undefined) {
-    updates.isCalled = payload.isCalled;
-  }
-
-  if (payload.isWatsapp !== undefined) {
-    updates.isWatsapp = payload.isWatsapp;
   }
 
   if (Object.keys(updates).length === 0) {
@@ -210,18 +230,105 @@ export const assignGuestToEvents = async (guestId: string, payload: AssignGuestT
     .populate("eventId", "eventName");
 };
 
-export const markGuestCallDone = async (guestId: string) => {
+export const getGuestEvents = async (guestId: string) => {
   assertObjectId(guestId, "Invalid guest id");
 
-  const guest = await Guest.findOneAndUpdate(
-    { _id: guestId, isDeleted: false },
-    { $set: { isCalled: true } },
-    { new: true }
-  );
-
+  const guest = await Guest.findOne({ _id: guestId, isDeleted: false }).select("_id name mobileNo").lean();
   if (!guest) {
     throw new Error("Guest not found");
   }
 
-  return guest;
+  const events = await Event.find({ isDeleted: false }).sort({ createdAt: -1 }).select("_id eventName").lean();
+  const eventIds = events.map((event) => event._id);
+
+  const mappings = await EventGuest.find({ guestId, eventId: { $in: eventIds } })
+    .select("eventId guestTag isCalled isWatsapp")
+    .lean();
+
+  const mappingByEventId = new Map(mappings.map((item) => [item.eventId.toString(), item]));
+
+  const eventList = events.map((event) => {
+    const mapping = mappingByEventId.get(event._id.toString());
+    return {
+      _id: event._id,
+      eventName: event.eventName,
+      isAssigned: Boolean(mapping),
+      guestTag: mapping?.guestTag ?? null,
+      isCalled: mapping?.isCalled ?? false,
+      isWatsapp: mapping?.isWatsapp ?? false,
+    };
+  });
+
+  return {
+    guest,
+    totalEvents: eventList.length,
+    assignedEventsCount: mappings.length,
+    data: eventList,
+  };
+};
+
+export const upsertGuestEventMappings = async (guestId: string, payload: UpsertGuestEventMappingsInput) => {
+  assertObjectId(guestId, "Invalid guest id");
+  const items = normalizeGuestEventMappingsPayload(payload);
+
+  const guest = await Guest.findOne({ _id: guestId, isDeleted: false }).select("_id");
+  if (!guest) {
+    throw new Error("Guest not found");
+  }
+
+  const eventIdsFromPayload = items
+    .map((item) => item.eventId)
+    .filter((id): id is string => Boolean(id));
+  const eventNamesFromPayload = items
+    .map((item) => item.eventName)
+    .filter((name): name is string => Boolean(name));
+
+  const events = await Event.find({
+    isDeleted: false,
+    $or: [{ _id: { $in: eventIdsFromPayload } }, { eventName: { $in: eventNamesFromPayload } }],
+  })
+    .select("_id eventName")
+    .lean();
+
+  const eventById = new Map(events.map((event) => [event._id.toString(), event]));
+  const eventByName = new Map(events.map((event) => [event.eventName.toLowerCase(), event]));
+
+  const resolvedMappings = items.map((item) => {
+    const event =
+      (item.eventId ? eventById.get(item.eventId) : undefined) ??
+      (item.eventName ? eventByName.get(item.eventName.toLowerCase()) : undefined);
+
+    if (!event) {
+      throw new Error(`Event not found for item: ${item.eventId ?? item.eventName}`);
+    }
+
+    return {
+      eventId: event._id.toString(),
+      guestTag: item.guestTag,
+      isCalled: item.isCalled,
+      isWatsapp: item.isWatsapp,
+    };
+  });
+
+  const bulkOps = resolvedMappings.map((item) => ({
+    updateOne: {
+      filter: { eventId: item.eventId, guestId },
+      update: {
+        $set: {
+          guestTag: item.guestTag,
+          isCalled: item.isCalled,
+          isWatsapp: item.isWatsapp,
+        },
+      },
+      upsert: true,
+    },
+  }));
+
+  await EventGuest.bulkWrite(bulkOps);
+
+  return EventGuest.find({ guestId })
+    .sort({ createdAt: -1 })
+    .populate("guestId", "name mobileNo")
+    .populate("eventId", "eventName")
+    .lean();
 };

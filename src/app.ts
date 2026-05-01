@@ -5,6 +5,8 @@ import dashboardRoutes from "./modules/dashboard/dashboard.route.js";
 import eventRoutes from "./modules/event/event.route.js";
 import eventGuestRoutes from "./modules/eventGuest/eventGuest.route.js";
 import guestRoutes from "./modules/guest/guest.route.js";
+import faqRoutes from "./modules/faq/faq.route.js";
+import userRoutes from "./modules/user/user.route.js";
 
 const app = express();
 const API_VERSION = "v1";
@@ -26,5 +28,7 @@ app.use(`${API_PREFIX}/dashboard`, dashboardRoutes);
 app.use(`${API_PREFIX}/events`, eventRoutes);
 app.use(`${API_PREFIX}/events`, eventGuestRoutes);
 app.use(`${API_PREFIX}/guests`, guestRoutes);
+app.use(`${API_PREFIX}/faqs`, faqRoutes);
+app.use(`${API_PREFIX}/users`, userRoutes);
 
 export default app;

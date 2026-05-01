@@ -51,12 +51,12 @@ export const getDashboardData = async () => {
         guestCount: { $sum: 1 },
         waSentCount: {
           $sum: {
-            $cond: [{ $eq: ["$guest.isWatsapp", true] }, 1, 0],
+            $cond: [{ $eq: ["$isWatsapp", true] }, 1, 0],
           },
         },
         calledCount: {
           $sum: {
-            $cond: [{ $eq: ["$guest.isCalled", true] }, 1, 0],
+            $cond: [{ $eq: ["$isCalled", true] }, 1, 0],
           },
         },
       },

@@ -48,6 +48,7 @@ export const getAllEvents = async (search?: string) => {
     _id: mongoose.Types.ObjectId;
     totalGuestCount: number;
     calledGuestCount: number;
+    whatsappGuestCount: number;
   }>([
     {
       $match: {
@@ -74,7 +75,12 @@ export const getAllEvents = async (search?: string) => {
         totalGuestCount: { $sum: 1 },
         calledGuestCount: {
           $sum: {
-            $cond: [{ $eq: ["$guest.isCalled", true] }, 1, 0],
+            $cond: [{ $eq: ["$isCalled", true] }, 1, 0],
+          },
+        },
+        whatsappGuestCount: {
+          $sum: {
+            $cond: [{ $eq: ["$isWatsapp", true] }, 1, 0],
           },
         },
       },
@@ -89,13 +95,13 @@ export const getAllEvents = async (search?: string) => {
     const stat = statsByEventId.get(event._id.toString());
     const totalGuestCount = stat?.totalGuestCount ?? 0;
     const calledGuestCount = stat?.calledGuestCount ?? 0;
-    const notCalledGuestCount = totalGuestCount - calledGuestCount;
+    const whatsappGuestCount = stat?.whatsappGuestCount ?? 0;
 
     return {
       ...event.toObject(),
       totalGuestCount,
       calledGuestCount,
-      notCalledGuestCount,
+      whatsappGuestCount,
     };
   });
 };

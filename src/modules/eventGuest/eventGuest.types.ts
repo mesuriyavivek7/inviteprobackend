@@ -6,3 +6,8 @@ export type AssignGuestItemInput = {
 };
 
 export type AssignGuestsInput = AssignGuestItemInput | { guests: AssignGuestItemInput[] };
+
+export type UpdateEventGuestStatusInput = {
+  isCalled?: boolean;
+  isWatsapp?: boolean;
+};

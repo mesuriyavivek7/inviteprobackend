@@ -2,7 +2,11 @@ import mongoose from "mongoose";
 import Event from "../event/event.model.js";
 import EventGuest, { GUEST_TAGS, type GuestTag } from "./eventGuest.model.js";
 import Guest from "../guest/guest.model.js";
-import type { AssignGuestItemInput, AssignGuestsInput } from "./eventGuest.types.js";
+import type {
+  AssignGuestItemInput,
+  AssignGuestsInput,
+  UpdateEventGuestStatusInput,
+} from "./eventGuest.types.js";
 
 const assertObjectId = (id: string, message: string): void => {
   if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -71,8 +75,57 @@ export const getGuestsByEvent = async (eventId: string) => {
   const event = await Event.findOne({ _id: eventId, isDeleted: false });
   if (!event) throw new Error("Event not found");
 
-  return EventGuest.find({ eventId })
+  const eventGuests = await EventGuest.find({ eventId })
     .sort({ createdAt: -1 })
     .populate("guestId", "name mobileNo")
+    .populate("eventId", "eventName")
+    .lean();
+
+  return eventGuests.map((item) => ({
+    _id: item._id,
+    event: item.eventId,
+    guestTag: item.guestTag,
+    guest: {
+      ...(typeof item.guestId === "object" && item.guestId !== null ? item.guestId : {}),
+      isCalled: item.isCalled ?? false,
+      isWatsapp: item.isWatsapp ?? false,
+    },
+    createdAt: item.createdAt,
+    updatedAt: item.updatedAt,
+  }));
+};
+
+export const updateEventGuestStatus = async (
+  eventId: string,
+  guestId: string,
+  payload: UpdateEventGuestStatusInput
+) => {
+  assertObjectId(eventId, "Invalid event id");
+  assertObjectId(guestId, "Invalid guest id");
+
+  const updates: UpdateEventGuestStatusInput = {};
+  if (payload.isCalled !== undefined) {
+    updates.isCalled = payload.isCalled;
+  }
+  if (payload.isWatsapp !== undefined) {
+    updates.isWatsapp = payload.isWatsapp;
+  }
+
+  if (Object.keys(updates).length === 0) {
+    throw new Error("At least one status field is required");
+  }
+
+  const mapping = await EventGuest.findOneAndUpdate(
+    { eventId, guestId },
+    { $set: updates },
+    { new: true }
+  )
+    .populate("guestId", "name mobileNo")
     .populate("eventId", "eventName");
+
+  if (!mapping) {
+    throw new Error("Event guest mapping not found");
+  }
+
+  return mapping;
 };

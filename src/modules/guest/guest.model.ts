@@ -4,8 +4,6 @@ const guestSchema = new Schema(
   {
     name: { type: String, required: true, trim: true },
     mobileNo: { type: String, required: true, trim: true },
-    isCalled: { type: Boolean, default: false },
-    isWatsapp: { type: Boolean, default: false },
     isDeleted: { type: Boolean, default: false },
     deletedAt: { type: Date, default: null },
   },
