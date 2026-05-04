@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import Event from "../event/event.model.js";
-import EventGuest, { GUEST_TAGS, type GuestTag } from "./eventGuest.model.js";
+import EventGuest, { type GuestTag } from "./eventGuest.model.js";
+import { normalizeGuestTagInput } from "./guestTag.util.js";
 import Guest from "../guest/guest.model.js";
 import type {
   AssignGuestItemInput,
@@ -14,14 +15,6 @@ const assertObjectId = (id: string, message: string): void => {
   }
 };
 
-const normalizeGuestTag = (tag: AssignGuestItemInput["guestTag"]): GuestTag => {
-  const normalized = tag.trim().toLowerCase().replace(/\s+/g, "_");
-  if ((GUEST_TAGS as readonly string[]).includes(normalized)) {
-    return normalized as GuestTag;
-  }
-  throw new Error("guestTag must be one of: single, 2 person, family");
-};
-
 const normalizeAssignments = (payload: AssignGuestsInput): Array<{ guestId: string; guestTag: GuestTag }> => {
   const items = "guests" in payload ? payload.guests : [payload];
   if (!Array.isArray(items) || items.length === 0) {
@@ -32,7 +25,7 @@ const normalizeAssignments = (payload: AssignGuestsInput): Array<{ guestId: stri
     assertObjectId(item.guestId, "Invalid guest id");
     return {
       guestId: item.guestId,
-      guestTag: normalizeGuestTag(item.guestTag),
+      guestTag: normalizeGuestTagInput(item.guestTag),
     };
   });
 };

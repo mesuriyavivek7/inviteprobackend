@@ -2,6 +2,7 @@ import mongoose from "mongoose";
 import Guest from "./guest.model.js";
 import Event from "../event/event.model.js";
 import EventGuest from "../eventGuest/eventGuest.model.js";
+import { normalizeGuestTagInput } from "../eventGuest/guestTag.util.js";
 import type {
   AssignGuestToEventsInput,
   CreateGuestInput,
@@ -39,16 +40,6 @@ const normalizeGuestsPayload = (payload: CreateGuestInput): GuestInput[] => {
   return [payload];
 };
 
-const normalizeGuestTag = (tag: string): "single" | "2_person" | "family" => {
-  const normalized = tag.trim().toLowerCase().replace(/\s+/g, "_");
-
-  if (normalized === "single") return "single";
-  if (normalized === "two" || normalized === "2_person") return "2_person";
-  if (normalized === "family") return "family";
-
-  throw new Error("guestTag must be one of: Single, Two, Family");
-};
-
 const normalizeEventAssignments = (
   payload: AssignGuestToEventsInput
 ): Array<{ eventId: string; guestTag: "single" | "2_person" | "family" }> => {
@@ -63,7 +54,7 @@ const normalizeEventAssignments = (
 
     return {
       eventId: item.eventId,
-      guestTag: normalizeGuestTag(item.guestTag),
+      guestTag: normalizeGuestTagInput(item.guestTag),
     };
   });
 };
@@ -88,7 +79,7 @@ const normalizeGuestEventMappingsPayload = (payload: UpsertGuestEventMappingsInp
     return {
       eventId,
       eventName,
-      guestTag: normalizeGuestTag(item.guestTag),
+      guestTag: normalizeGuestTagInput(item.guestTag),
       isCalled: item.isCalled ?? false,
       isWatsapp: item.isWatsapp ?? false,
     };

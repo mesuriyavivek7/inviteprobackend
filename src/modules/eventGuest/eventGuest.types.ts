@@ -2,7 +2,7 @@ import type { GuestTag } from "./eventGuest.model.js";
 
 export type AssignGuestItemInput = {
   guestId: string;
-  guestTag: GuestTag | "2 person";
+  guestTag: GuestTag;
 };
 
 export type AssignGuestsInput = AssignGuestItemInput | { guests: AssignGuestItemInput[] };

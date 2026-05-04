@@ -12,7 +12,7 @@ export type UpdateGuestInput = {
 
 export type AssignGuestEventItemInput = {
   eventId: string;
-  guestTag: "single" | "2_person" | "family" | "Single" | "Two" | "Family";
+  guestTag: "single" | "2_person" | "family";
 };
 
 export type AssignGuestToEventsInput =
@@ -22,7 +22,7 @@ export type AssignGuestToEventsInput =
 export type UpsertGuestEventMappingItemInput = {
   eventId?: string;
   eventName?: string;
-  guestTag: "single" | "2_person" | "family" | "Single" | "Two" | "Family";
+  guestTag: "single" | "2_person" | "family";
   isCalled?: boolean;
   isWatsapp?: boolean;
 };
